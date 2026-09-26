@@ -38,6 +38,18 @@
 }
 .card-slot{min-width:0;position:relative}.photo.is-loading{min-height:170px;background:#eeede7}.photo.is-loading img{opacity:0}.photo img[hidden]{display:none}.image-status{position:absolute;inset:0;display:grid;place-items:center;font:11px var(--ui);color:var(--muted)}.photo.is-missing .image-status{inset:auto 4px 12px;font-size:10px}.image-retry{display:block;margin:12px auto;padding:8px 10px;border:1px solid var(--line);background:var(--paper);color:var(--blue);font-size:11px}.music-toggle{border:0;background:none;color:var(--muted);font:inherit;padding:4px 0;white-space:nowrap}.music-toggle[aria-pressed=true]{color:var(--blue)}.purchase-summary{margin:32px 0 0;font-size:12px;color:var(--blue)}.purchase-summary a{border-bottom:1px solid #3f8fc95c;padding-bottom:4px}.purchase-summary a[aria-disabled]{color:var(--muted)}#share-dialog{background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:22px;width:min(92vw,510px);max-height:92svh;overflow:auto}#share-dialog::backdrop{background:#1118}.share-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.share-head h2{font-size:17px;font-weight:400;margin:0}.share-head button{border:0;background:none;font-size:28px;color:var(--muted);padding:0 5px}#share-status,.share-hint{font-size:12px;line-height:1.7;color:var(--muted)}#share-preview{display:block;width:auto;max-width:100%;max-height:57svh;margin:16px auto}#share-preview[hidden],[hidden]{display:none!important}#share-dialog .actions{margin-top:18px}.share-hint{text-align:center;margin-bottom:0}#local-image-picker{font-size:12px;line-height:2;padding:15px 0}#champion-file{max-width:100%;font-size:12px}#save-image{text-align:center}.primary:disabled{opacity:.5}
 @media(max-width:600px){nav{gap:12px}.music-toggle span{display:none}.photo.is-loading{min-height:140px}}
+@media(max-width:600px){
+  .champion{padding:12px 3% 16px}
+  .champion h1{font-size:45px;line-height:1;margin:3px 0 10px}
+  .champion-card{max-width:min(78vw,510px)}
+  .champion .card-caption{padding:7px 3px 8px}
+  .champion .purchase-summary{margin:8px 0 0;font-size:11px}
+  .champion .archive-stamp{margin:11px 0 8px;padding:7px 9px;gap:11px;font-size:7px}
+  .champion .archive-copy{font-size:7px;line-height:1.6}
+  .champion .actions{gap:7px;margin-top:12px}
+  .champion .actions button{padding:9px 12px;min-height:38px;font-size:11px}
+  .champion .share-hint{margin-top:8px}
+}
 .share-head{justify-content:flex-end}#share-status:empty{display:none}nav a{white-space:nowrap}
 @media(max-width:600px){.topbar{flex-wrap:wrap;height:auto;min-height:63px;padding:14px 0}.topbar nav{margin-left:auto;font-size:8px;letter-spacing:.03em}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -199,6 +211,23 @@ musicButton.addEventListener('click', async () => {
 music.addEventListener('play', updateMusicButton);
 music.addEventListener('pause', updateMusicButton);
 music.addEventListener('error', () => { musicBusy = false; musicButton.disabled = false; updateMusicButton(); });
+
+// 比赛由用户点击开始；在该点击手势中尝试播放音乐。
+async function tryAutoPlayMusic() {
+  if (musicBusy || !music.paused) return;
+  musicBusy = true;
+  musicButton.disabled = true;
+  try {
+    if (!music.getAttribute('src')) music.src = SITE_CONFIG.audioUrl;
+    await music.play();
+  } catch {
+    // 浏览器的自动播放策略优先；不以静音规避用户可感知的限制。
+  } finally {
+    musicBusy = false;
+    musicButton.disabled = false;
+    updateMusicButton();
+  }
+}
 
 // 分享图使用 Canvas 合成：不需要图片服务，且照片完整保留、不裁切。
 const shareDialog = document.querySelector('#share-dialog');
@@ -420,15 +449,15 @@ function pathMarkup() {
 }
 function homeMarkup() {
   return `<section class="home fade-in"><div class="hero"><img src="${embeddedMedia.hero || 'assets/images/hero.jpg'}" alt="YESUNG The 2nd Album ‘Where We Are’ · YESUNG ARCHIVE"></div>
-    <p class="eyebrow">YESUNG · WHERE WE ARE · POLAROID WORLD CUP</p><h1>16张拍立得两选一对决</h1><p class="subtitle">Where We Are 特典预售中</p><button class="primary" data-action="${state.started ? 'resume' : 'start'}">${state.champion ? '查看我的冠军' : state.started ? '继续比赛' : '开始比赛'} →</button><p class="home-note mono">16 POLAROIDS / 15 CHOICES / 1 CHAMPION</p></section>`;
+    <p class="eyebrow">YESUNG · WHERE WE ARE · POLAROID WORLD CUP</p><h1>艺声正规二拍立得世界杯</h1><p class="subtitle">Where We Are 特典预售中</p><button class="primary" data-action="${state.started ? 'resume' : 'start'}">${state.champion ? '查看我的冠军' : state.started ? '继续比赛' : '开始比赛'} →</button><p class="home-note mono">16 POLAROIDS / 15 CHOICES / 1 CHAMPION</p></section>`;
 }
 function gameMarkup() {
   const r = rounds[state.round];
   if (state.transitioning) return `<section class="transition-page fade-in"><span class="file-label mono">WHERE WE ARE · FILE ${pad(state.round + 1)}</span><span class="round mono">${r.name}</span><h1 class="stage-title">${r.from} → ${r.to}</h1></section>`;
-  return `<section class="page game ${state.round === 3 ? 'is-final' : ''} fade-in"><div class="file-label mono">WHERE WE ARE · ${state.round === 3 ? 'FINAL' : `FILE ${pad(state.round + 1)}`}</div>${pathMarkup()}<h1 class="stage-title">${r.from} → ${r.to}</h1><p class="match-label mono">MATCH ${pad(state.match + 1)} / ${pad(r.matches)}</p><div class="duel">${cardMarkup(state.pool[state.match * 2], { clickable: true })}<span class="vs">vs</span>${cardMarkup(state.pool[state.match * 2 + 1], { clickable: true })}</div><p class="choose-note mono">${state.round === 3 ? 'CHOOSE YOUR CHAMPION' : '选一张，让记忆继续。'}</p><div class="progress"><span style="width:${state.history.length / 15 * 100}%"></span></div><p class="selection-count mono">${pad(state.history.length)} / 15 CHOICES</p></section>`;
+  return `<section class="page game ${state.round === 3 ? 'is-final' : ''} fade-in"><div class="file-label mono">WHERE WE ARE · ${state.round === 3 ? 'FINAL' : `FILE ${pad(state.round + 1)}`}</div>${pathMarkup()}<h1 class="stage-title">${r.from} → ${r.to}</h1><p class="match-label mono">MATCH ${pad(state.match + 1)} / ${pad(r.matches)}</p><div class="duel">${cardMarkup(state.pool[state.match * 2], { clickable: true })}<span class="vs">vs</span>${cardMarkup(state.pool[state.match * 2 + 1], { clickable: true })}</div><p class="choose-note mono">${state.round === 3 ? 'CHOOSE YOUR CHAMPION' : '选一张，成为代表我们日常的奇迹。'}</p><div class="progress"><span style="width:${state.history.length / 15 * 100}%"></span></div><p class="selection-count mono">${pad(state.history.length)} / 15 CHOICES</p></section>`;
 }
 function championMarkup() {
-  return `<section class="page champion fade-in"><span class="file-label mono">ARCHIVE COMPLETE</span><h1>Champion</h1><div class="champion-card">${cardMarkup(state.champion, { champion: true })}</div><div class="archive-stamp mono"><span>YESUNG ARCHIVE</span><span>NO. 01</span><span>CHAMPION</span></div><p class="archive-copy mono">SELECTED FROM 16 POLAROIDS<br>YESUNG ARCHIVE<br>WHERE WE ARE</p><div class="actions"><button class="primary" data-action="share">分享我的冠军图片</button><button class="secondary" data-action="review">回顾我的选择</button><button class="secondary" data-action="start">再玩一次</button></div><p class="purchase-summary"><a id="purchase-link" target="_blank" rel="noopener noreferrer">拍立得特典购买总结 ↗</a></p></section>`;
+  return `<section class="page champion fade-in"><span class="file-label mono">ARCHIVE COMPLETE</span><h1>Champion</h1><div class="champion-card">${cardMarkup(state.champion, { champion: true })}</div><p class="purchase-summary"><a id="purchase-link" target="_blank" rel="noopener noreferrer">拍立得特典购买总结 ↗</a></p><div class="archive-stamp mono"><span>YESUNG ARCHIVE</span><span>NO. 01</span><span>CHAMPION</span></div><p class="archive-copy mono">SELECTED FROM 16 POLAROIDS<br>YESUNG ARCHIVE<br>WHERE WE ARE</p><div class="actions"><button class="primary" data-action="share">分享我的冠军图片</button><button class="secondary" data-action="review">回顾我的选择</button><button class="secondary" data-action="start">再玩一次</button></div></section>`;
 }
 function reviewMarkup() {
   return `<section class="page review fade-in"><div class="review-head"><div><span class="file-label mono">YESUNG ARCHIVE · CONTACT SHEET</span><h1>Your choices.</h1><p class="review-sub">A visual record of your choices.</p></div>${state.started ? `<button class="secondary" data-action="resume">${state.champion ? '返回冠军页' : '继续比赛'} →</button>` : ''}</div>
@@ -476,7 +505,7 @@ app.addEventListener('click', event => {
   const card = event.target.closest('[data-card]');
   if (card) { chooseCard(Number(card.dataset.card)); return; }
   const action = event.target.closest('[data-action]')?.dataset.action;
-  if (action === 'start') startGame();
+  if (action === 'start') { tryAutoPlayMusic(); startGame(); }
   if (action === 'resume') navigate(state.champion ? 'champion' : 'game');
   if (action === 'review') navigate('review');
   if (action === 'share') shareChampion();
